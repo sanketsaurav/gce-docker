@@ -42,7 +42,7 @@ func (s *VolumeSuite) SetUpTest(c *C) {
 func (s *VolumeSuite) initEnviroment(c *C) {
 	s.project = os.Getenv("GCP_DEFAULT_PROJECT")
 	s.zone = os.Getenv("GCP_DEFAULT_ZONE")
-	s.instance = "gke-mongo-cluster-605ad846-node-dlge"
+	s.instance = os.Getenv("GCP_DEFAULT_INSTANCE")
 
 	var err error
 	s.key, err = base64.StdEncoding.DecodeString(os.Getenv("GCP_JSON_KEY"))
