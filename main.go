@@ -13,6 +13,8 @@ import (
 	"gopkg.in/inconshreveable/log15.v2"
 )
 
+const DriverName = "gce"
+
 func main() {
 	if !metadata.OnGCE() {
 		log15.Error("docker-volume-gce driver only runs on Google Compute Engine")
@@ -36,7 +38,7 @@ func main() {
 	}
 
 	h := volume.NewHandler(d)
-	if err := h.ServeTCP("test", ":0"); err != nil {
+	if err := h.ServeTCP(DriverName, ":0"); err != nil {
 		log15.Error("error starting volume driver server", "error", err)
 		os.Exit(1)
 	}
