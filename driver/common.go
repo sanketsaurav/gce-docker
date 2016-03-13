@@ -6,9 +6,9 @@ import (
 	"strconv"
 )
 
-type DiskStatus string
+type Status string
 
-func (s DiskStatus) Equals(status string) bool {
+func (s Status) Equals(status string) bool {
 	return string(s) == status
 }
 
