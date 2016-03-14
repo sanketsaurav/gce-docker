@@ -37,8 +37,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	d.Root = "/mnt/"
+
 	h := volume.NewHandler(d)
-	if err := h.ServeTCP(DriverName, ":0"); err != nil {
+	if err := h.ServeTCP(DriverName, ":5678"); err != nil {
 		log15.Error("error starting volume driver server", "error", err)
 		os.Exit(1)
 	}
