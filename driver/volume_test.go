@@ -49,14 +49,37 @@ func (s *VolumeSuite) initEnviroment(c *C) {
 	c.Assert(err, IsNil)
 }
 
-func (s *VolumeSuite) TestCreateAndRemove(c *C) {
+func (s *VolumeSuite) TestCreateRemoveAndList(c *C) {
 	driver, err := NewVolume(s.c, s.project, s.zone, s.instance)
 	c.Assert(err, IsNil)
 
+	driver.Root = "/mnt/"
+
 	name := s.getRandomName("create")
+
+	//create disk, it not exists
 	response := driver.Create(volume.Request{Name: name})
 	c.Assert(response.Err, Equals, "")
 
+	//ignore disk already exists
+	response = driver.Create(volume.Request{Name: name})
+	c.Assert(response.Err, Equals, "")
+
+	//list disks
+	response = driver.List(volume.Request{})
+	c.Assert(response.Err, Equals, "")
+
+	var found bool
+	for _, v := range response.Volumes {
+		if v.Name == name {
+			found = true
+			c.Assert(v.Mountpoint, Equals, "/mnt/"+name)
+		}
+	}
+
+	c.Assert(found, Equals, true)
+
+	//removes the created disk
 	response = driver.Remove(volume.Request{Name: name})
 	c.Assert(response.Err, Equals, "")
 }
@@ -81,6 +104,8 @@ func (s *VolumeSuite) TestMountAndUnmount(c *C) {
 	c.Assert(response.Mountpoint, Equals, mount)
 	c.Assert(fs.Mounted, HasLen, 1)
 	c.Assert(fs.Mounted[mount], Equals, dev)
+	c.Assert(fs.Formatted, HasLen, 1)
+	c.Assert(fs.Formatted[dev], Equals, "ext4")
 
 	response = driver.Unmount(volume.Request{Name: name})
 	c.Assert(response.Err, Equals, "")
@@ -121,14 +146,17 @@ func (s *VolumeSuite) getRandomName(name string) string {
 }
 
 type MemFilesystem struct {
-	Mounted map[string]string
+	Mounted   map[string]string
+	Formatted map[string]string
 	afero.Fs
 }
 
 func NewMemFilesystem() *MemFilesystem {
 	return &MemFilesystem{
-		Mounted: make(map[string]string, 0),
-		Fs:      afero.NewMemMapFs(),
+		Mounted:   make(map[string]string, 0),
+		Formatted: make(map[string]string, 0),
+
+		Fs: afero.NewMemMapFs(),
 	}
 }
 
@@ -139,5 +167,20 @@ func (fs *MemFilesystem) Mount(source string, target string) error {
 
 func (fs *MemFilesystem) Unmount(target string) error {
 	fs.Mounted[target] = ""
+	return nil
+}
+
+func (fs *MemFilesystem) Format(source string) error {
+	fs.Formatted[source] = "ext4"
+	return nil
+}
+
+func (fs *MemFilesystem) WaitExists(path string, timeout time.Duration) error {
+	time.Sleep(10 * time.Second)
+	return nil
+}
+
+func (fs *MemFilesystem) WaitNotExists(path string, timeout time.Duration) error {
+	time.Sleep(10 * time.Second)
 	return nil
 }

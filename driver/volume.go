@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/inconshreveable/log15.v2"
+
 	"github.com/docker/go-plugins-helpers/volume"
 	"google.golang.org/api/compute/v1"
 )
@@ -52,15 +54,24 @@ func NewVolume(c *http.Client, project, zone, instance string) (*Volume, error) 
 	}, nil
 }
 
-//https://godoc.org/google.golang.org/api/compute/v1#Disk
 func (v *Volume) Create(r volume.Request) volume.Response {
+	log15.Info("create request received", "name", r.Name)
+
+	exists, err := v.diskExists(r.Name)
+	if err != nil {
+		return buildReponseError(err)
+	}
+
+	if exists {
+		return volume.Response{}
+	}
+
 	d := &compute.Disk{Name: r.Name}
 	if err := applyOptions(r.Options, d); err != nil {
 		return buildReponseError(err)
 	}
 
-	_, err := v.s.Disks.Insert(v.project, v.zone, d).Do()
-	if err != nil {
+	if _, err := v.s.Disks.Insert(v.project, v.zone, d).Do(); err != nil {
 		return buildReponseError(err)
 	}
 
@@ -72,14 +83,37 @@ func (v *Volume) Create(r volume.Request) volume.Response {
 }
 
 func (v *Volume) List(volume.Request) volume.Response {
-	return volume.Response{Err: "not implemented"}
+	log15.Info("list request received")
+
+	disks, err := v.listAvailableDisks()
+	if err != nil {
+		return buildReponseError(err)
+	}
+
+	r := volume.Response{}
+	for _, d := range disks {
+		if !ReadyStatus.Equals(d.Status) {
+			continue
+		}
+
+		r.Volumes = append(r.Volumes, &volume.Volume{
+			Name:       d.Name,
+			Mountpoint: v.mountPoint(d.Name),
+		})
+	}
+
+	return r
 }
 
 func (v *Volume) Get(volume.Request) volume.Response {
+	log15.Info("get request received")
+
 	return volume.Response{Err: "not implemented"}
 }
 
 func (v *Volume) Remove(r volume.Request) volume.Response {
+	log15.Info("remove request received", "name", r.Name)
+
 	_, err := v.s.Disks.Delete(v.project, v.zone, r.Name).Do()
 	if err != nil {
 		return buildReponseError(err)
@@ -89,17 +123,28 @@ func (v *Volume) Remove(r volume.Request) volume.Response {
 }
 
 func (v *Volume) Path(r volume.Request) volume.Response {
-	return volume.Response{
-		Mountpoint: v.mountPoint(r.Name),
+	mnt := v.mountPoint(r.Name)
+	log15.Info("path request received", "name", r.Name, "mnt", mnt)
+
+	if err := v.createMountPoint(r.Name); err != nil {
+		return buildReponseError(err)
 	}
+
+	return volume.Response{Mountpoint: mnt}
 }
 
 func (v *Volume) Mount(r volume.Request) volume.Response {
+	log15.Info("mount request received", "name", r.Name)
+
 	if err := v.createMountPoint(r.Name); err != nil {
 		return buildReponseError(err)
 	}
 
 	if err := v.attachDisk(r.Name); err != nil {
+		return buildReponseError(err)
+	}
+
+	if err := v.formatAttachedDisk(r.Name); err != nil {
 		return buildReponseError(err)
 	}
 
@@ -110,6 +155,30 @@ func (v *Volume) Mount(r volume.Request) volume.Response {
 	return volume.Response{
 		Mountpoint: v.mountPoint(r.Name),
 	}
+}
+
+func (v *Volume) diskExists(name string) (bool, error) {
+	disks, err := v.listAvailableDisks()
+	if err != nil {
+		return false, err
+	}
+
+	for _, d := range disks {
+		if d.Name == name {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func (v *Volume) listAvailableDisks() ([]*compute.Disk, error) {
+	op, err := v.s.Disks.List(v.project, v.zone).Do()
+	if err != nil {
+		return nil, err
+	}
+
+	return op.Items, err
 }
 
 func (v *Volume) createMountPoint(name string) error {
@@ -141,11 +210,25 @@ func (v *Volume) attachDisk(name string) error {
 		return err
 	}
 
-	if err := v.waitAttachedDisk(name, true); err != nil {
+	dev := fmt.Sprintf(devPattern, d.DeviceName)
+	if err := v.fs.WaitExists(dev, WaitStatusTimeout); err != nil {
 		return err
 	}
 
+	//wait to become available, still need a seconds
+	time.Sleep(300 * time.Millisecond)
+
 	return nil
+}
+
+func (v *Volume) formatAttachedDisk(name string) error {
+	disk, err := v.getAttachedDisk(name)
+	if err != nil {
+		return err
+	}
+
+	source := fmt.Sprintf(devPattern, disk.DeviceName)
+	return v.fs.Format(source)
 }
 
 func (v *Volume) mountAttachedDisk(name string) error {
@@ -161,6 +244,8 @@ func (v *Volume) mountAttachedDisk(name string) error {
 }
 
 func (v *Volume) Unmount(r volume.Request) volume.Response {
+	log15.Info("unmount request received", "name", r.Name)
+
 	if err := v.unmountAttachedDisk(r.Name); err != nil {
 		return buildReponseError(err)
 	}
@@ -192,30 +277,9 @@ func (v *Volume) detachDisk(name string) error {
 		return err
 	}
 
-	if err := v.waitAttachedDisk(name, false); err != nil {
+	dev := fmt.Sprintf(devPattern, disk.DeviceName)
+	if err := v.fs.WaitNotExists(dev, WaitStatusTimeout); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func (v *Volume) waitAttachedDisk(name string, attach bool) error {
-	c := time.Tick(500 * time.Millisecond)
-	start := time.Now()
-
-	for range c {
-		r, err := v.isAttachedDisk(name)
-		if err != nil {
-			return err
-		}
-
-		if r == attach {
-			return nil
-		}
-
-		if time.Since(start) > WaitStatusTimeout {
-			return fmt.Errorf("Timeout exceeded waiting detach %q", name)
-		}
 	}
 
 	return nil
@@ -284,5 +348,6 @@ func (v *Volume) sourceURL(name string) string {
 }
 
 func buildReponseError(err error) volume.Response {
+	log15.Error("request failed", "error", err.Error())
 	return volume.Response{Err: err.Error()}
 }
