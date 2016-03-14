@@ -10,7 +10,9 @@ Installing
 The recommended way to install `docker-volume-gce` is use the provided docker image.
 
 Run the driver using the following command:
-`docker run -d -v /:/rootfs -v /etc/docker:/etc/docker -p 5678:5678 --privileged mcuadros/docker-volume-gce`
+```sh
+docker run -d -v /:/rootfs -v /etc/docker:/etc/docker -p 5678:5678 --privileged mcuadros/docker-volume-gce
+```
 
 `privileged` is required since the driver needs low level access to the host mount namespace, the driver mounts, umounts and format disk.
 
@@ -18,12 +20,20 @@ Run the driver using the following command:
 
 Usage
 -----
-## Persistent disk creation
-Using `docker volume create` a new disk is created.
-`docker volume create --driver=gce --name my-disk -o SizeGb=90`
+### Persistent disk creation
 
-## Using a disk on your container
-`docker run -ti -v my-disk:/data --volume-driver=gce busybox sh`
+Using `docker volume create` a new disk is created.
+```sh
+docker volume create --driver=gce --name my-disk -o SizeGb=90
+```
+
+### Using a disk on your container
+
+Just add the flags `--volume-driver=gce` and the `-v <disk-name>:/data` to any docker run command:
+
+```sh
+docker run -ti -v my-disk:/data --volume-driver=gce busybox sh
+```
 
 If the disk already exists will be used, if not a new one with the default values will be created (Standard/500GB)
 
