@@ -9,7 +9,7 @@ import (
 	"google.golang.org/api/googleapi"
 )
 
-var NetworkBaseName = "bzg-container-network-%s-%s"
+var NetworkBaseName = "aag-container-network-%s-%s"
 
 type Network struct {
 	s        *compute.Service

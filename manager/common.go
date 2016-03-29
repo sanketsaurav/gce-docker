@@ -13,9 +13,15 @@ func contains(haystack []string, needle string) bool {
 }
 
 func InstanceURL(project, zone, instance string) string {
-	return fmt.Sprintf("projects/%s/zones/%s/instances/%s", project, zone, instance)
+	return fmt.Sprintf(
+		"https://www.googleapis.com/compute/v1/projects/%s/zones/%s/instances/%s",
+		project, zone, instance,
+	)
 }
 
 func TargetPoolURL(project, region, targetPool string) string {
-	return fmt.Sprintf("projects/%s/regions/%s/targetPools/%s", project, region, targetPool)
+	return fmt.Sprintf(
+		"https://www.googleapis.com/compute/v1/projects/%s/regions/%s/targetPools/%s",
+		project, region, targetPool,
+	)
 }
