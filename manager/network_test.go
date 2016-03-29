@@ -48,10 +48,9 @@ func (s *NetworkSuite) TestCreate(c *C) {
 	c.Assert(err, IsNil)
 
 	config := &NetworkConfig{
-		GroupName: "qux",
-		Container: "foo",
-		Protocol:  "upd",
-		Port:      "53",
+		Container: "test",
+		Protocol:  "tcp",
+		Port:      "8000",
 	}
 
 	err = n.Create(config)

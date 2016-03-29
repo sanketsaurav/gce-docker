@@ -53,10 +53,13 @@ func (c *NetworkConfig) Firewall(instance string) *compute.Firewall {
 		network = "global/networks/default"
 	}
 
+	name := c.Name(instance)
+
 	return &compute.Firewall{
-		Name:         c.Name(instance),
+		Name:         name,
 		SourceRanges: sourceRanges,
 		SourceTags:   c.Source.Tags,
+		TargetTags:   []string{name},
 		Network:      network,
 		Allowed: []*compute.FirewallAllowed{{
 			IPProtocol: c.Protocol,
