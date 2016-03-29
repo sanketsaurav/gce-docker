@@ -87,7 +87,7 @@ func (c *NetworkConfig) ID(instance string) string {
 	}, "|")
 
 	hash := md5.Sum([]byte(unique))
-	return hex.EncodeToString(hash[:])
+	return hex.EncodeToString(hash[:])[:8]
 }
 
 func (c *NetworkConfig) Validate() error {

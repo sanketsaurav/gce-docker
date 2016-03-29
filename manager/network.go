@@ -9,7 +9,7 @@ import (
 	"google.golang.org/api/googleapi"
 )
 
-var NetworkBaseName = "gce-network-%s-%s"
+var NetworkBaseName = "bzg-container-network-%s-%s"
 
 type Network struct {
 	s        *compute.Service
@@ -80,12 +80,11 @@ func (n *Network) updateInstanceTags(c *NetworkConfig) error {
 		return nil
 	}
 
-	op, err := n.s.Instances.SetTags(n.project, n.zone, n.instance, &compute.Tags{
+	_, err = n.s.Instances.SetTags(n.project, n.zone, n.instance, &compute.Tags{
 		Items:       append(i.Tags.Items, tag),
 		Fingerprint: i.Tags.Fingerprint,
 	}).Do()
 
-	fmt.Println(op, err)
 	return err
 
 }
@@ -106,18 +105,18 @@ func (n *Network) createOrUpdateTargetPool(c *NetworkConfig) error {
 
 func (n *Network) createTargetPool(pool *compute.TargetPool) error {
 	op, err := n.s.TargetPools.Insert(n.project, n.region, pool).Do()
-	fmt.Println("create", op)
+
+	fmt.Println("||||\n\n", op, "\n\n||||")
 
 	return err
 }
 
 func (n *Network) updateTargetPool(old, new *compute.TargetPool) error {
-	op, err := n.s.TargetPools.AddInstance(n.project, n.region, new.Name, &compute.TargetPoolsAddInstanceRequest{
+	_, err := n.s.TargetPools.AddInstance(n.project, n.region, new.Name, &compute.TargetPoolsAddInstanceRequest{
 		Instances: []*compute.InstanceReference{{
 			Instance: InstanceURL(n.project, n.zone, n.instance),
 		}},
 	}).Do()
-	fmt.Println("update", op)
 
 	return err
 }
@@ -135,27 +134,18 @@ func (n *Network) createForwardingRule(c *NetworkConfig) error {
 		return err
 	}
 
-	op, err := n.s.ForwardingRules.Insert(n.project, n.region, rule).Do()
-	fmt.Println("create, rule", op)
-
+	_, err = n.s.ForwardingRules.Insert(n.project, n.region, rule).Do()
 	return err
 }
 
 func (n *Network) createOrUpdateFirewall(c *NetworkConfig) error {
-	new := c.Firewall(n.instance)
-	old, err := n.s.Firewalls.Get(n.project, new.Name).Do()
-	if err != nil {
+	rule := c.Firewall(n.instance)
+	if _, err := n.s.Firewalls.Get(n.project, rule.Name).Do(); err != nil {
 		if apiErr, ok := err.(*googleapi.Error); !ok || apiErr.Code != 404 {
 			return err
 		}
 	}
 
-	op, err := n.s.Firewalls.Insert(n.project, new).Do()
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("create, firewall", op, old, err)
-
-	return nil
+	_, err := n.s.Firewalls.Insert(n.project, rule).Do()
+	return err
 }
