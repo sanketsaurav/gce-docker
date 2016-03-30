@@ -1,7 +1,7 @@
-FROM jpetazzo/nsenter
+FROM alpine:3.1
 MAINTAINER Máximo Cuadros <mcuadros@gmail.com>
 
-ADD docker-volume-gce /bin/
-EXPOSE 5678
+RUN apk add --update util-linux && rm -rf /var/cache/apk/*
 
+ADD docker-volume-gce /bin/
 CMD ["docker-volume-gce"]
