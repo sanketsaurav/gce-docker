@@ -44,7 +44,7 @@ func (s *ConfigSuite) TestNetworkConfigDeviceName(c *C) {
 
 func (s *ConfigSuite) TestNetworkConfigDev(c *C) {
 	config := &DiskConfig{Name: "docker-volume-foo"}
-	c.Assert(config.Dev(), Equals, "/dev/disk/by-id/google-docker-volume-foo")
+	c.Assert(config.Dev(), Equals, "/dev/disk/by-id/google-docker-volume-docker-volume-foo")
 }
 
 func (s *ConfigSuite) TestNetworkConfigMountPoint(c *C) {

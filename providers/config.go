@@ -39,7 +39,7 @@ func (c *DiskConfig) DeviceName() string {
 }
 
 func (c *DiskConfig) Dev() string {
-	return fmt.Sprintf(DiskDevBasePath, c.Name)
+	return fmt.Sprintf(DiskDevBasePath, c.DeviceName())
 }
 
 func (c *DiskConfig) MountPoint(root string) string {
