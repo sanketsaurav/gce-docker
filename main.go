@@ -1,11 +1,12 @@
 package main
 
 import (
+	"net/http"
 	"os"
 
-	"github.com/mcuadros/docker-volume-gce/driver"
-
 	"github.com/docker/go-plugins-helpers/volume"
+	"github.com/mcuadros/docker-volume-gce/plugin"
+	"github.com/mcuadros/docker-volume-gce/watcher"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/compute/v1"
@@ -29,23 +30,40 @@ func main() {
 	}
 
 	project, zone, instance := getMetadataInfo()
-	log15.Info("starting volume driver", "project", project, "zone", zone, "instance", instance)
+	go executeWatcher(c, project, zone, instance)
+	go executeVolumePlugin(c, project, zone, instance)
+	select {}
+}
 
-	d, err := driver.NewVolume(c, project, zone, instance)
+func executeWatcher(c *http.Client, project, zone, instance string) {
+	log15.Info("starting watcher", "project", project, "zone", zone, "instance", instance)
+	w, err := watcher.NewWatcher()
 	if err != nil {
-		log15.Error("error creating volume driver", "error", err)
+		log15.Error("error creating watcher", "error", err)
 		os.Exit(1)
 	}
 
-	d.Root = "/mnt/"
+	if err := w.Watch(); err != nil {
+		log15.Error("error starting watcher", "error", err)
+		os.Exit(1)
+	}
+}
+
+func executeVolumePlugin(c *http.Client, project, zone, instance string) {
+	log15.Info("starting volume driver", "project", project, "zone", zone, "instance", instance)
+	d, err := plugin.NewVolume(c, project, zone, instance)
+	if err != nil {
+		log15.Error("error creating volume plugin", "error", err)
+		os.Exit(1)
+	}
 
 	h := volume.NewHandler(d)
-	if err := h.ServeTCP(DriverName, ":5678"); err != nil {
+	if err := h.ServeUnix("docker", "gce"); err != nil {
 		log15.Error("error starting volume driver server", "error", err)
 		os.Exit(1)
 	}
 
-	log15.Info("http server started")
+	log15.Info("volume plugin: http server started")
 }
 
 func getMetadataInfo() (project string, zone string, instance string) {
