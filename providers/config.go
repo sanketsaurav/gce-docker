@@ -5,7 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
-	"strings"
+
+	"github.com/fsouza/go-dockerclient"
 
 	"google.golang.org/api/compute/v1"
 )
@@ -62,10 +63,9 @@ type SessionAffinity string
 type NetworkConfig struct {
 	GroupName string
 	Container string
-	Protocol  string
 	Network   string
 	Address   string
-	Port      string
+	Ports     []docker.Port
 	Source    struct {
 		Ranges []string
 		Tags   []string
@@ -81,14 +81,19 @@ func (c *NetworkConfig) TargetPool(project, zone, instance string) *compute.Targ
 	}
 }
 
-func (c *NetworkConfig) ForwardingRule(instance, targetPoolURL string) *compute.ForwardingRule {
-	return &compute.ForwardingRule{
-		Name:       c.Name(instance),
-		IPAddress:  c.Address,
-		IPProtocol: c.Protocol,
-		PortRange:  c.Port,
-		Target:     targetPoolURL,
+func (c *NetworkConfig) ForwardingRule(instance, targetPoolURL string) []*compute.ForwardingRule {
+	var rules []*compute.ForwardingRule
+	for _, p := range c.Ports {
+		rules = append(rules, &compute.ForwardingRule{
+			Name:       fmt.Sprintf("%s-%s-%s", c.Name(instance), p.Port(), p.Proto()),
+			IPAddress:  c.Address,
+			IPProtocol: p.Proto(),
+			PortRange:  p.Port(),
+			Target:     targetPoolURL,
+		})
 	}
+
+	return rules
 }
 
 func (c *NetworkConfig) Firewall(instance string) *compute.Firewall {
@@ -103,6 +108,13 @@ func (c *NetworkConfig) Firewall(instance string) *compute.Firewall {
 	}
 
 	name := c.Name(instance)
+	var allowed []*compute.FirewallAllowed
+	for _, p := range c.Ports {
+		allowed = append(allowed, &compute.FirewallAllowed{
+			IPProtocol: p.Proto(),
+			Ports:      []string{p.Port()},
+		})
+	}
 
 	return &compute.Firewall{
 		Name:         name,
@@ -110,10 +122,7 @@ func (c *NetworkConfig) Firewall(instance string) *compute.Firewall {
 		SourceTags:   c.Source.Tags,
 		TargetTags:   []string{name},
 		Network:      network,
-		Allowed: []*compute.FirewallAllowed{{
-			IPProtocol: c.Protocol,
-			Ports:      []string{c.Port},
-		}},
+		Allowed:      allowed,
 	}
 }
 
@@ -130,10 +139,12 @@ func (c *NetworkConfig) Group(instance string) string {
 }
 
 func (c *NetworkConfig) ID(instance string) string {
-	unique := strings.Join([]string{
-		c.Group(instance),
-		c.Address, c.Protocol, c.Port,
-	}, "|")
+	var unique string
+	unique += c.Group(instance)
+	unique += c.Address
+	for _, p := range c.Ports {
+		unique += string(p)
+	}
 
 	hash := md5.Sum([]byte(unique))
 	return hex.EncodeToString(hash[:])[:8]
@@ -144,12 +155,8 @@ func (c *NetworkConfig) Validate() error {
 		return fmt.Errorf("invalid network config, container field cannot be empty")
 	}
 
-	if c.Protocol == "" {
-		return fmt.Errorf("invalid network config, protocol field cannot be empty")
-	}
-
-	if c.Port == "" {
-		return fmt.Errorf("invalid network config, port field cannot be empty")
+	if len(c.Ports) == 0 {
+		return fmt.Errorf("invalid network config, ports field cannot be empty")
 	}
 
 	return nil

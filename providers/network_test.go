@@ -1,6 +1,9 @@
 package providers
 
-import . "gopkg.in/check.v1"
+import (
+	"github.com/fsouza/go-dockerclient"
+	. "gopkg.in/check.v1"
+)
 
 type NetworkSuite struct {
 	BaseSuite
@@ -18,8 +21,11 @@ func (s *NetworkSuite) TestCreate(c *C) {
 
 	config := &NetworkConfig{
 		Container: "test",
-		Protocol:  "tcp",
-		Port:      "8000",
+		Ports: []docker.Port{
+			docker.Port("53/udp"),
+			docker.Port("80/tcp"),
+			docker.Port("443/tcp"),
+		},
 	}
 
 	err = n.Create(config)

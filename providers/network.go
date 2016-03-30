@@ -38,7 +38,7 @@ func (n *Network) Create(c *NetworkConfig) error {
 		return fmt.Errorf("error creating/updating target pool: %s", err)
 	}
 
-	if err := n.createForwardingRule(c); err != nil {
+	if err := n.createForwardingRules(c); err != nil {
 		return fmt.Errorf("error creating forwarding rule: %s", err)
 	}
 
@@ -110,10 +110,18 @@ func (n *Network) updateTargetPool(old, new *compute.TargetPool) error {
 	return n.WaitDone(op)
 }
 
-func (n *Network) createForwardingRule(c *NetworkConfig) error {
+func (n *Network) createForwardingRules(c *NetworkConfig) error {
 	targetPoolURL := TargetPoolURL(n.project, n.region, c.Name(n.instance))
+	for _, rule := range c.ForwardingRule(n.instance, targetPoolURL) {
+		if err := n.createForwardingRule(rule); err != nil {
+			return err
+		}
+	}
 
-	rule := c.ForwardingRule(n.instance, targetPoolURL)
+	return nil
+}
+
+func (n *Network) createForwardingRule(rule *compute.ForwardingRule) error {
 	_, err := n.s.ForwardingRules.Get(n.project, n.region, rule.Name).Do()
 	if err == nil {
 		return nil
@@ -177,8 +185,16 @@ func (n *Network) deleteFirewall(c *NetworkConfig) error {
 
 func (n *Network) deleteForwardingRules(c *NetworkConfig) error {
 	targetPoolURL := TargetPoolURL(n.project, n.region, c.Name(n.instance))
-	rule := c.ForwardingRule(n.instance, targetPoolURL)
+	for _, rule := range c.ForwardingRule(n.instance, targetPoolURL) {
+		if err := n.deleteForwardingRule(rule); err != nil {
+			return err
+		}
+	}
 
+	return nil
+}
+
+func (n *Network) deleteForwardingRule(rule *compute.ForwardingRule) error {
 	op, err := n.s.ForwardingRules.Delete(n.project, n.region, rule.Name).Do()
 	if err != nil {
 		return err
