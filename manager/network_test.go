@@ -55,4 +55,7 @@ func (s *NetworkSuite) TestCreate(c *C) {
 
 	err = n.Create(config)
 	c.Assert(err, IsNil)
+
+	err = n.Delete(config)
+	c.Assert(err, IsNil)
 }

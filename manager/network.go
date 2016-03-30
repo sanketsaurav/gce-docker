@@ -3,47 +3,22 @@ package manager
 import (
 	"fmt"
 	"net/http"
-	"strings"
 
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 )
 
-var NetworkBaseName = "aag-container-network-%s-%s"
-
 type Network struct {
-	s        *compute.Service
-	zone     string
-	region   string
-	project  string
-	instance string
+	Client
 }
 
 func NewNetwork(c *http.Client, project, zone, instance string) (*Network, error) {
-	s, err := compute.New(c)
+	client, err := NewClient(c, project, zone, instance)
 	if err != nil {
 		return nil, err
 	}
 
-	n := &Network{
-		s:        s,
-		project:  project,
-		zone:     zone,
-		instance: instance,
-	}
-
-	return n, n.loadRegion()
-}
-
-func (n *Network) loadRegion() error {
-	z, err := n.s.Zones.Get(n.project, n.zone).Do()
-	if err != nil {
-		return fmt.Errorf("error retrieving region from zone: %s", err)
-	}
-
-	region := strings.Split(z.Region, "/")
-	n.region = region[len(region)-1]
-	return nil
+	return &Network{Client: *client}, nil
 }
 
 func (n *Network) Create(c *NetworkConfig) error {
@@ -80,12 +55,16 @@ func (n *Network) updateInstanceTags(c *NetworkConfig) error {
 		return nil
 	}
 
-	_, err = n.s.Instances.SetTags(n.project, n.zone, n.instance, &compute.Tags{
+	op, err := n.s.Instances.SetTags(n.project, n.zone, n.instance, &compute.Tags{
 		Items:       append(i.Tags.Items, tag),
 		Fingerprint: i.Tags.Fingerprint,
 	}).Do()
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	return n.WaitDone(op)
 
 }
 
@@ -105,20 +84,25 @@ func (n *Network) createOrUpdateTargetPool(c *NetworkConfig) error {
 
 func (n *Network) createTargetPool(pool *compute.TargetPool) error {
 	op, err := n.s.TargetPools.Insert(n.project, n.region, pool).Do()
+	if err != nil {
+		return err
+	}
 
-	fmt.Println("||||\n\n", op, "\n\n||||")
-
-	return err
+	return n.WaitDone(op)
 }
 
 func (n *Network) updateTargetPool(old, new *compute.TargetPool) error {
-	_, err := n.s.TargetPools.AddInstance(n.project, n.region, new.Name, &compute.TargetPoolsAddInstanceRequest{
+	op, err := n.s.TargetPools.AddInstance(n.project, n.region, new.Name, &compute.TargetPoolsAddInstanceRequest{
 		Instances: []*compute.InstanceReference{{
 			Instance: InstanceURL(n.project, n.zone, n.instance),
 		}},
 	}).Do()
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	return n.WaitDone(op)
 }
 
 func (n *Network) createForwardingRule(c *NetworkConfig) error {
@@ -134,8 +118,12 @@ func (n *Network) createForwardingRule(c *NetworkConfig) error {
 		return err
 	}
 
-	_, err = n.s.ForwardingRules.Insert(n.project, n.region, rule).Do()
-	return err
+	op, err := n.s.ForwardingRules.Insert(n.project, n.region, rule).Do()
+	if err != nil {
+		return err
+	}
+
+	return n.WaitDone(op)
 }
 
 func (n *Network) createOrUpdateFirewall(c *NetworkConfig) error {
@@ -144,8 +132,62 @@ func (n *Network) createOrUpdateFirewall(c *NetworkConfig) error {
 		if apiErr, ok := err.(*googleapi.Error); !ok || apiErr.Code != 404 {
 			return err
 		}
+
+		op, err := n.s.Firewalls.Insert(n.project, rule).Do()
+		if err != nil {
+			return err
+		}
+
+		return n.WaitDone(op)
 	}
 
-	_, err := n.s.Firewalls.Insert(n.project, rule).Do()
-	return err
+	return nil
+}
+
+func (n *Network) Delete(c *NetworkConfig) error {
+	if err := n.deleteFirewall(c); err != nil {
+		return err
+	}
+
+	if err := n.deleteForwardingRules(c); err != nil {
+		return err
+	}
+
+	if err := n.deleteTargetPool(c); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (n *Network) deleteFirewall(c *NetworkConfig) error {
+	rule := c.Firewall(n.instance)
+	op, err := n.s.Firewalls.Delete(n.project, rule.Name).Do()
+	if err != nil {
+		return err
+	}
+
+	return n.WaitDone(op)
+}
+
+func (n *Network) deleteForwardingRules(c *NetworkConfig) error {
+	targetPoolURL := TargetPoolURL(n.project, n.region, c.Name(n.instance))
+	rule := c.ForwardingRule(n.instance, targetPoolURL)
+
+	op, err := n.s.ForwardingRules.Delete(n.project, n.region, rule.Name).Do()
+	if err != nil {
+		return err
+	}
+
+	return n.WaitDone(op)
+}
+
+func (n *Network) deleteTargetPool(c *NetworkConfig) error {
+	pool := c.TargetPool(n.project, n.zone, n.instance)
+	op, err := n.s.TargetPools.Delete(n.project, n.region, pool.Name).Do()
+	if err != nil {
+		return err
+	}
+
+	return n.WaitDone(op)
 }

@@ -9,6 +9,8 @@ import (
 	"google.golang.org/api/compute/v1"
 )
 
+var NetworkBaseName = "docker-container-network-%s-%s"
+
 type SessionAffinity string
 type NetworkConfig struct {
 	GroupName string
