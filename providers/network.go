@@ -8,6 +8,11 @@ import (
 	"google.golang.org/api/googleapi"
 )
 
+type NetworkProvider interface {
+	Create(c *DiskConfig) error
+	Delete(c *DiskConfig) error
+}
+
 type Network struct {
 	Client
 }

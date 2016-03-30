@@ -8,7 +8,11 @@ type NetworkSuite struct {
 
 var _ = Suite(&NetworkSuite{})
 
-func (s *NetworkSuite) AAATestCreate(c *C) {
+func (s *NetworkSuite) TestCreate(c *C) {
+	if !*integration {
+		c.Skip("-integration not provided")
+	}
+
 	n, err := NewNetwork(s.c, s.project, s.zone, s.instance)
 	c.Assert(err, IsNil)
 

@@ -1,11 +1,10 @@
-package driver
+package plugin
 
 import (
 	"fmt"
 	"io/ioutil"
 	"os/exec"
 	"strings"
-	"time"
 
 	"gopkg.in/inconshreveable/log15.v2"
 
@@ -25,8 +24,6 @@ type Filesystem interface {
 	Mount(source string, target string) error
 	Unmount(target string) error
 	Format(source string) error
-	WaitExists(path string, timeout time.Duration) error
-	WaitNotExists(path string, timeout time.Duration) error
 }
 
 type OSFilesystem struct {
@@ -166,36 +163,6 @@ func (fs *OSFilesystem) getBlkidArgs(source string) []string {
 	}
 
 	return args
-}
-
-func (fs *OSFilesystem) WaitExists(path string, timeout time.Duration) error {
-	return fs.waitChangeStatus(path, true, timeout)
-}
-
-func (fs *OSFilesystem) WaitNotExists(path string, timeout time.Duration) error {
-	return fs.waitChangeStatus(path, false, timeout)
-}
-
-func (fs *OSFilesystem) waitChangeStatus(path string, wanted bool, timeout time.Duration) error {
-	c := time.Tick(500 * time.Millisecond)
-	start := time.Now()
-
-	for range c {
-		status, err := afero.Exists(fs.Fs, path)
-		if err != nil {
-			return err
-		}
-
-		if status == wanted {
-			return nil
-		}
-
-		if time.Since(start) > timeout {
-			return fmt.Errorf("Timeout exceeded waiting %q", path)
-		}
-	}
-
-	return nil
 }
 
 func inContainer() bool {

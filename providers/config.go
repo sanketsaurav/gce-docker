@@ -4,14 +4,16 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"google.golang.org/api/compute/v1"
 )
 
 var (
-	NetworkBaseName    = "docker-container-network-%s-%s"
-	DeviceNameBaseName = "docker-volume-%s"
+	NetworkBaseName        = "docker-network-%s-%s"
+	DiskDeviceNameBaseName = "docker-volume-%s"
+	DiskDevBasePath        = "/dev/disk/by-id/google-%s"
 )
 
 type DiskConfig struct {
@@ -32,6 +34,18 @@ func (c *DiskConfig) Disk() *compute.Disk {
 	}
 }
 
+func (c *DiskConfig) DeviceName() string {
+	return fmt.Sprintf(DiskDeviceNameBaseName, c.Name)
+}
+
+func (c *DiskConfig) Dev() string {
+	return fmt.Sprintf(DiskDevBasePath, c.Name)
+}
+
+func (c *DiskConfig) MountPoint(root string) string {
+	return filepath.Join(root, c.Name)
+}
+
 func (c *DiskConfig) Validate() error {
 	if c.Name == "" {
 		return fmt.Errorf("invalid disk config, name field cannot be empty")
@@ -42,10 +56,6 @@ func (c *DiskConfig) Validate() error {
 	}
 
 	return nil
-}
-
-func (c *DiskConfig) DeviceName() string {
-	return fmt.Sprintf(DeviceNameBaseName, c.Name)
 }
 
 type SessionAffinity string

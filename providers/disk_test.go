@@ -9,6 +9,10 @@ type DiskSuite struct {
 var _ = Suite(&DiskSuite{})
 
 func (s *DiskSuite) TestCreate(c *C) {
+	if !*integration {
+		c.Skip("-integration not provided")
+	}
+
 	n, err := NewDisk(s.c, s.project, s.zone, s.instance)
 	c.Assert(err, IsNil)
 

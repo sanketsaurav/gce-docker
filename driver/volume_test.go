@@ -1,18 +1,14 @@
-package driver
+package plugin
 
 import (
-	"encoding/base64"
 	"fmt"
-	"net/http"
-	"os"
 	"time"
 
-	"github.com/docker/go-plugins-helpers/volume"
-	"github.com/spf13/afero"
-	"golang.org/x/net/context"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 	"google.golang.org/api/compute/v1"
+
+	"github.com/docker/go-plugins-helpers/volume"
+	"github.com/mcuadros/docker-volume-gce/providers"
+	"github.com/spf13/afero"
 
 	. "gopkg.in/check.v1"
 )
@@ -20,129 +16,133 @@ import (
 const TimeoutAfterUnmount = 15 * time.Second
 
 type VolumeSuite struct {
-	key                     []byte
-	project, zone, instance string
-
-	c *http.Client
+	v  *Volume
+	fs *MemFilesystem
+	p  *DiskProviderFixture
 }
 
 var _ = Suite(&VolumeSuite{})
 
-func (s *VolumeSuite) SetUpSuite(c *C) {
-	s.initEnviroment(c)
-}
 func (s *VolumeSuite) SetUpTest(c *C) {
-	ctx := context.Background()
-	jwt, err := google.JWTConfigFromJSON(s.key, compute.ComputeScope)
-	c.Assert(err, IsNil)
-
-	s.c = oauth2.NewClient(ctx, jwt.TokenSource(ctx))
+	s.fs = NewMemFilesystem()
+	s.p = NewDiskProviderFixture()
+	s.v = &Volume{p: s.p, fs: s.fs, Root: "/mnt/"}
 }
 
-func (s *VolumeSuite) initEnviroment(c *C) {
-	s.project = os.Getenv("GCP_DEFAULT_PROJECT")
-	s.zone = os.Getenv("GCP_DEFAULT_ZONE")
-	s.instance = os.Getenv("GCP_DEFAULT_INSTANCE")
+func (s *VolumeSuite) TestCreate(c *C) {
+	r := s.v.Create(volume.Request{Name: "foo"})
+	c.Assert(r.Err, HasLen, 0)
 
-	var err error
-	s.key, err = base64.StdEncoding.DecodeString(os.Getenv("GCP_JSON_KEY"))
-	c.Assert(err, IsNil)
+	c.Assert(s.p.disks, HasLen, 1)
+	c.Assert(s.p.disks["foo"], Equals, true)
 }
 
-func (s *VolumeSuite) TestCreateRemoveAndList(c *C) {
-	driver, err := NewVolume(s.c, s.project, s.zone, s.instance)
+func (s *VolumeSuite) TestList(c *C) {
+	r := s.v.Create(volume.Request{Name: "foo"})
+	c.Assert(r.Err, HasLen, 0)
+
+	r = s.v.List(volume.Request{})
+	c.Assert(r.Err, HasLen, 0)
+	c.Assert(r.Volumes, HasLen, 1)
+	c.Assert(r.Volumes[0].Name, Equals, "foo")
+}
+
+func (s *VolumeSuite) TestRemove(c *C) {
+	r := s.v.Create(volume.Request{Name: "foo"})
+	c.Assert(r.Err, HasLen, 0)
+
+	r = s.v.Remove(volume.Request{Name: "foo"})
+	c.Assert(r.Err, HasLen, 0)
+
+	c.Assert(s.p.disks, HasLen, 0)
+}
+
+func (s *VolumeSuite) TestPath(c *C) {
+	r := s.v.Path(volume.Request{Name: "foo"})
+	c.Assert(r.Err, HasLen, 0)
+	c.Assert(r.Mountpoint, Equals, "/mnt/foo")
+
+	fs, err := s.fs.Stat(r.Mountpoint)
 	c.Assert(err, IsNil)
+	c.Assert(fs.IsDir(), Equals, true)
+}
 
-	driver.Root = "/mnt/"
+func (s *VolumeSuite) TestMount(c *C) {
+	r := s.v.Create(volume.Request{Name: "foo"})
+	c.Assert(r.Err, HasLen, 0)
 
-	name := s.getRandomName("create")
+	r = s.v.Mount(volume.Request{Name: "foo"})
+	c.Assert(r.Err, HasLen, 0)
+	c.Assert(r.Mountpoint, Equals, "/mnt/foo")
 
-	//create disk, it not exists
-	response := driver.Create(volume.Request{Name: name})
-	c.Assert(response.Err, Equals, "")
+	fs, err := s.fs.Stat(r.Mountpoint)
+	c.Assert(err, IsNil)
+	c.Assert(fs.IsDir(), Equals, true)
 
-	//ignore disk already exists
-	response = driver.Create(volume.Request{Name: name})
-	c.Assert(response.Err, Equals, "")
+	c.Assert(s.p.attached, HasLen, 1)
+	c.Assert(s.p.attached["foo"], Equals, true)
+	c.Assert(s.fs.Mounted["/mnt/foo"], Equals, "/dev/disk/by-id/google-foo")
+}
 
-	//list disks
-	response = driver.List(volume.Request{})
-	c.Assert(response.Err, Equals, "")
+func (s *VolumeSuite) TestUnmount(c *C) {
+	r := s.v.Create(volume.Request{Name: "foo"})
+	c.Assert(r.Err, HasLen, 0)
 
-	var found bool
-	for _, v := range response.Volumes {
-		if v.Name == name {
-			found = true
-			c.Assert(v.Mountpoint, Equals, "/mnt/"+name)
-		}
+	r = s.v.Mount(volume.Request{Name: "foo"})
+	c.Assert(r.Err, HasLen, 0)
+	c.Assert(r.Mountpoint, Equals, "/mnt/foo")
+
+	r = s.v.Unmount(volume.Request{Name: "foo"})
+	c.Assert(r.Err, HasLen, 0)
+
+	c.Assert(s.p.attached, HasLen, 0)
+	c.Assert(s.fs.Mounted["/mnt/foo"], Equals, "")
+}
+
+type DiskProviderFixture struct {
+	disks    map[string]bool
+	attached map[string]bool
+}
+
+func NewDiskProviderFixture() *DiskProviderFixture {
+	return &DiskProviderFixture{
+		disks:    make(map[string]bool, 0),
+		attached: make(map[string]bool, 0),
+	}
+}
+
+func (d *DiskProviderFixture) Create(c *providers.DiskConfig) error {
+	d.disks[c.Name] = true
+	return nil
+}
+
+func (d *DiskProviderFixture) Attach(c *providers.DiskConfig) error {
+	if _, ok := d.disks[c.Name]; !ok {
+		return fmt.Errorf("unable to find disk %s", c.Name)
 	}
 
-	c.Assert(found, Equals, true)
-
-	//removes the created disk
-	response = driver.Remove(volume.Request{Name: name})
-	c.Assert(response.Err, Equals, "")
+	d.attached[c.Name] = true
+	return nil
 }
 
-func (s *VolumeSuite) TestMountAndUnmount(c *C) {
-	driver, err := NewVolume(s.c, s.project, s.zone, s.instance)
-	c.Assert(err, IsNil)
-
-	fs := NewMemFilesystem()
-	driver.fs = fs
-	driver.Root = "/mnt/"
-
-	name := s.getRandomName("create")
-	dev := fmt.Sprintf(devPattern, fmt.Sprintf(DeviceNamePattern, name))
-	mount := "/mnt/" + name
-
-	response := driver.Create(volume.Request{Name: name})
-	c.Assert(response.Err, Equals, "")
-
-	response = driver.Mount(volume.Request{Name: name})
-	c.Assert(response.Err, Equals, "")
-	c.Assert(response.Mountpoint, Equals, mount)
-	c.Assert(fs.Mounted, HasLen, 1)
-	c.Assert(fs.Mounted[mount], Equals, dev)
-	c.Assert(fs.Formatted, HasLen, 1)
-	c.Assert(fs.Formatted[dev], Equals, "ext4")
-
-	response = driver.Unmount(volume.Request{Name: name})
-	c.Assert(response.Err, Equals, "")
-	c.Assert(fs.Mounted, HasLen, 1)
-	c.Assert(fs.Mounted[mount], Equals, "")
-
-	time.Sleep(TimeoutAfterUnmount)
-	response = driver.Remove(volume.Request{Name: name})
-	c.Assert(response.Err, Equals, "")
+func (d *DiskProviderFixture) Detach(c *providers.DiskConfig) error {
+	delete(d.attached, c.Name)
+	return nil
 }
 
-func (s *VolumeSuite) TestMountInvalidPath(c *C) {
-	driver, err := NewVolume(s.c, s.project, s.zone, s.instance)
-	c.Assert(err, IsNil)
-
-	fs := NewMemFilesystem()
-	driver.fs = fs
-	driver.Root = "/mnt/"
-
-	file, err := fs.Create("/mnt/foo")
-	c.Assert(err, IsNil)
-	_, err = file.WriteString("foo")
-	c.Assert(err, IsNil)
-	err = file.Close()
-	c.Assert(err, IsNil)
-
-	response := driver.Mount(volume.Request{Name: "foo"})
-	c.Assert(response.Err, Equals, `error the mountpoint "/mnt/foo" already exists`)
-	c.Assert(response.Mountpoint, Equals, "")
-	c.Assert(fs.Mounted, HasLen, 0)
+func (d *DiskProviderFixture) Delete(c *providers.DiskConfig) error {
+	delete(d.disks, c.Name)
+	return nil
 }
 
-func (s *VolumeSuite) getRandomName(name string) string {
-	return fmt.Sprintf(
-		"test-dv-gce-%s-%s",
-		time.Now().Format("20060102150405000000"), name,
-	)
+func (d *DiskProviderFixture) List() ([]*compute.Disk, error) {
+	var l []*compute.Disk
+	for name, _ := range d.disks {
+		l = append(l, &compute.Disk{Name: name, Status: "READY"})
+	}
+
+	l = append(l, &compute.Disk{Name: "no-ready", Status: "PENDING"})
+	return l, nil
 }
 
 type MemFilesystem struct {
@@ -172,15 +172,5 @@ func (fs *MemFilesystem) Unmount(target string) error {
 
 func (fs *MemFilesystem) Format(source string) error {
 	fs.Formatted[source] = "ext4"
-	return nil
-}
-
-func (fs *MemFilesystem) WaitExists(path string, timeout time.Duration) error {
-	time.Sleep(10 * time.Second)
-	return nil
-}
-
-func (fs *MemFilesystem) WaitNotExists(path string, timeout time.Duration) error {
-	time.Sleep(10 * time.Second)
 	return nil
 }

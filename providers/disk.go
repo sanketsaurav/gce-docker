@@ -7,6 +7,14 @@ import (
 	"google.golang.org/api/googleapi"
 )
 
+type DiskProvider interface {
+	Create(c *DiskConfig) error
+	Attach(c *DiskConfig) error
+	Detach(c *DiskConfig) error
+	Delete(c *DiskConfig) error
+	List() ([]*compute.Disk, error)
+}
+
 type Disk struct {
 	Client
 }
@@ -68,4 +76,13 @@ func (d *Disk) Delete(c *DiskConfig) error {
 	}
 
 	return d.WaitDone(op)
+}
+
+func (d *Disk) List() ([]*compute.Disk, error) {
+	op, err := d.s.Disks.List(d.project, d.zone).Do()
+	if err != nil {
+		return nil, err
+	}
+
+	return op.Items, err
 }
