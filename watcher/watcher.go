@@ -1,4 +1,4 @@
-package manager
+package watcher
 
 import (
 	"fmt"
@@ -34,7 +34,7 @@ func NewWatcher() (*Watcher, error) {
 	}, nil
 }
 
-func (m *Watcher) Start() error {
+func (m *Watcher) Watch() error {
 	m.listener = make(chan *docker.APIEvents, 0)
 
 	if err := m.c.AddEventListener(m.listener); err != nil {

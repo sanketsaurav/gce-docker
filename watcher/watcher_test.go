@@ -1,4 +1,4 @@
-package manager
+package watcher
 
 import (
 	"fmt"
@@ -14,10 +14,10 @@ type IPManagerSuite struct{}
 var _ = Suite(&IPManagerSuite{})
 
 func (s *IPManagerSuite) AATestStart(c *C) {
-	m, err := NewIPManager()
+	m, err := NewWatcher()
 	c.Assert(err, IsNil)
 
-	err = m.Start()
+	err = m.Watch()
 	c.Assert(err, IsNil)
 
 	fmt.Println(err)
