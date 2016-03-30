@@ -1,4 +1,4 @@
-package manager
+package providers
 
 import "fmt"
 
@@ -10,6 +10,13 @@ func contains(haystack []string, needle string) bool {
 	}
 
 	return false
+}
+
+func DiskURL(project, zone, disks string) string {
+	return fmt.Sprintf(
+		"https://www.googleapis.com/compute/v1/projects/%s/zones/%s/disks/%s",
+		project, zone, disks,
+	)
 }
 
 func InstanceURL(project, zone, instance string) string {

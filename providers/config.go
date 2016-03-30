@@ -1,4 +1,4 @@
-package manager
+package providers
 
 import (
 	"crypto/md5"
@@ -9,7 +9,44 @@ import (
 	"google.golang.org/api/compute/v1"
 )
 
-var NetworkBaseName = "docker-container-network-%s-%s"
+var (
+	NetworkBaseName    = "docker-container-network-%s-%s"
+	DeviceNameBaseName = "docker-volume-%s"
+)
+
+type DiskConfig struct {
+	Name           string
+	Type           string
+	SizeGb         int64
+	SourceSnapshot string
+	SourceImage    string
+}
+
+func (c *DiskConfig) Disk() *compute.Disk {
+	return &compute.Disk{
+		Name:           c.Name,
+		Type:           c.Type,
+		SizeGb:         c.SizeGb,
+		SourceSnapshot: c.SourceSnapshot,
+		SourceImage:    c.SourceImage,
+	}
+}
+
+func (c *DiskConfig) Validate() error {
+	if c.Name == "" {
+		return fmt.Errorf("invalid disk config, name field cannot be empty")
+	}
+
+	if c.SourceSnapshot != "" && c.SourceImage != "" {
+		return fmt.Errorf("invalid dick config, source snapshot and source image can't be presents at the same time.")
+	}
+
+	return nil
+}
+
+func (c *DiskConfig) DeviceName() string {
+	return fmt.Sprintf(DeviceNameBaseName, c.Name)
+}
 
 type SessionAffinity string
 type NetworkConfig struct {

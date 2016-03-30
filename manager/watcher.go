@@ -9,7 +9,7 @@ import (
 
 var IPAssignLabel = "gce.driver.ip.static"
 
-type IPManager struct {
+type Watcher struct {
 	WatchedStatus map[string]bool
 	WatchedLabels map[string]bool
 	DefaultDelay  time.Duration
@@ -19,13 +19,13 @@ type IPManager struct {
 	listener chan *docker.APIEvents
 }
 
-func NewIPManager() (*IPManager, error) {
+func NewWatcher() (*Watcher, error) {
 	c, err := docker.NewClientFromEnv()
 	if err != nil {
 		return nil, err
 	}
 
-	return &IPManager{
+	return &Watcher{
 		WatchedStatus: map[string]bool{"die": true, "start": true},
 		WatchedLabels: map[string]bool{IPAssignLabel: true},
 		DefaultDelay:  time.Second * 1,
@@ -34,7 +34,7 @@ func NewIPManager() (*IPManager, error) {
 	}, nil
 }
 
-func (m *IPManager) Start() error {
+func (m *Watcher) Start() error {
 	m.listener = make(chan *docker.APIEvents, 0)
 
 	if err := m.c.AddEventListener(m.listener); err != nil {
@@ -48,7 +48,7 @@ func (m *IPManager) Start() error {
 	return nil
 }
 
-func (m *IPManager) handleEvent(e *docker.APIEvents) error {
+func (m *Watcher) handleEvent(e *docker.APIEvents) error {
 	if !m.WatchedStatus[e.Status] {
 		return nil
 	}
@@ -75,7 +75,7 @@ func (m *IPManager) handleEvent(e *docker.APIEvents) error {
 	return nil
 }
 
-func (m *IPManager) watchedLabels(c *docker.Container) map[string]string {
+func (m *Watcher) watchedLabels(c *docker.Container) map[string]string {
 	var matched = make(map[string]string, 0)
 	for label, value := range c.Config.Labels {
 		if !m.WatchedLabels[label] {
@@ -88,7 +88,7 @@ func (m *IPManager) watchedLabels(c *docker.Container) map[string]string {
 	return matched
 }
 
-func (m *IPManager) attach(c *docker.Container, l map[string]string) error {
+func (m *Watcher) attach(c *docker.Container, l map[string]string) error {
 	jobID := JobID(c.ID)
 
 	m.w.Delete(jobID)
@@ -100,7 +100,7 @@ func (m *IPManager) attach(c *docker.Container, l map[string]string) error {
 	return nil
 }
 
-func (m *IPManager) detach(c *docker.Container, l map[string]string) error {
+func (m *Watcher) detach(c *docker.Container, l map[string]string) error {
 	jobID := JobID(c.ID)
 
 	m.w.Delete(jobID)
