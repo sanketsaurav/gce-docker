@@ -180,7 +180,7 @@ func (m *Watcher) validateLabels(l map[string]string) error {
 		return fmt.Errorf("invalid label %q value must be `static` or `ephemeral`", LabelNetworkType)
 	}
 
-	if l[LabelNetworkType] == "static" && l[LabelNetworkAddress] == LabelNetworkAddress {
+	if l[LabelNetworkType] == "static" && l[LabelNetworkAddress] == "" {
 		return fmt.Errorf("invalid label %q, cannot be empty when %q is static", LabelNetworkAddress, LabelNetworkType)
 	}
 

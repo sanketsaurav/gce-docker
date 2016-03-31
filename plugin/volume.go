@@ -35,7 +35,8 @@ func NewVolume(c *http.Client, project, zone, instance string) (*Volume, error) 
 }
 
 func (v *Volume) Create(r volume.Request) volume.Response {
-	log15.Info("create request received", "name", r.Name)
+	log15.Debug("create request received", "name", r.Name)
+	start := time.Now()
 	config, err := v.createDiskConfig(r)
 	if err != nil {
 		return buildReponseError(err)
@@ -45,11 +46,12 @@ func (v *Volume) Create(r volume.Request) volume.Response {
 		return buildReponseError(err)
 	}
 
+	log15.Info("disk created", "disk", r.Name, "elapsed", time.Since(start))
 	return volume.Response{}
 }
 
 func (v *Volume) List(volume.Request) volume.Response {
-	log15.Info("list request received")
+	log15.Debug("list request received")
 	disks, err := v.p.List()
 	if err != nil {
 		return buildReponseError(err)
@@ -70,13 +72,14 @@ func (v *Volume) List(volume.Request) volume.Response {
 }
 
 func (v *Volume) Get(volume.Request) volume.Response {
-	log15.Info("get request received")
-
+	log15.Debug("get request received")
 	return volume.Response{Err: "not implemented"}
 }
 
 func (v *Volume) Remove(r volume.Request) volume.Response {
-	log15.Info("remove request received", "name", r.Name)
+	log15.Debug("remove request received", "name", r.Name)
+	start := time.Now()
+
 	config, err := v.createDiskConfig(r)
 	if err != nil {
 		return buildReponseError(err)
@@ -86,6 +89,7 @@ func (v *Volume) Remove(r volume.Request) volume.Response {
 		return buildReponseError(err)
 	}
 
+	log15.Info("disk removed", "disk", r.Name, "elapsed", time.Since(start))
 	return volume.Response{}
 }
 
@@ -96,7 +100,7 @@ func (v *Volume) Path(r volume.Request) volume.Response {
 	}
 
 	mnt := config.MountPoint(v.Root)
-	log15.Info("path request received", "name", r.Name, "mnt", mnt)
+	log15.Debug("path request received", "name", r.Name, "mnt", mnt)
 
 	if err := v.createMountPoint(config); err != nil {
 		return buildReponseError(err)
@@ -106,7 +110,9 @@ func (v *Volume) Path(r volume.Request) volume.Response {
 }
 
 func (v *Volume) Mount(r volume.Request) volume.Response {
-	log15.Info("mount request received", "name", r.Name)
+	log15.Debug("mount request received", "name", r.Name)
+	start := time.Now()
+
 	config, err := v.createDiskConfig(r)
 	if err != nil {
 		return buildReponseError(err)
@@ -128,6 +134,7 @@ func (v *Volume) Mount(r volume.Request) volume.Response {
 		return buildReponseError(err)
 	}
 
+	log15.Info("disk mounted", "disk", r.Name, "elapsed", time.Since(start))
 	return volume.Response{
 		Mountpoint: config.MountPoint(v.Root),
 	}
@@ -152,7 +159,8 @@ func (v *Volume) createMountPoint(c *providers.DiskConfig) error {
 }
 
 func (v *Volume) Unmount(r volume.Request) volume.Response {
-	log15.Info("unmount request received", "name", r.Name)
+	log15.Debug("unmount request received", "name", r.Name)
+	start := time.Now()
 	config, err := v.createDiskConfig(r)
 	if err != nil {
 		return buildReponseError(err)
@@ -166,6 +174,7 @@ func (v *Volume) Unmount(r volume.Request) volume.Response {
 		return buildReponseError(err)
 	}
 
+	log15.Info("disk unmounted", "disk", r.Name, "elapsed", time.Since(start))
 	return volume.Response{}
 }
 

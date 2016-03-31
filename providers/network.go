@@ -122,6 +122,7 @@ func (n *Network) createForwardingRules(c *NetworkConfig) error {
 }
 
 func (n *Network) createForwardingRule(rule *compute.ForwardingRule) error {
+
 	_, err := n.s.ForwardingRules.Get(n.project, n.region, rule.Name).Do()
 	if err == nil {
 		return nil
