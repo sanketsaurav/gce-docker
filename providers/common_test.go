@@ -11,7 +11,6 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-
 	"google.golang.org/api/compute/v1"
 	. "gopkg.in/check.v1"
 )

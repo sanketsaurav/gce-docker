@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"google.golang.org/api/compute/v1"
-
 	"github.com/docker/go-plugins-helpers/volume"
 	"github.com/mcuadros/docker-volume-gce/providers"
 	"github.com/spf13/afero"
-
+	"google.golang.org/api/compute/v1"
 	. "gopkg.in/check.v1"
 )
 

@@ -6,10 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/inconshreveable/log15.v2"
-
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 const MaxWaitDuration = time.Minute

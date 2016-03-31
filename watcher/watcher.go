@@ -9,7 +9,7 @@ import (
 	"gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/fsouza/go-dockerclient"
-	"github.com/mcuadros/docker-volume-gce/providers"
+	"github.com/mcuadros/gce-docker/providers"
 )
 
 var (

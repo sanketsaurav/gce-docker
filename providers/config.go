@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/fsouza/go-dockerclient"
-
 	"google.golang.org/api/compute/v1"
 )
 

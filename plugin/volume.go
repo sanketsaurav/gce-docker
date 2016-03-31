@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mcuadros/docker-volume-gce/providers"
+	"github.com/mcuadros/gce-docker/providers"
 
 	"github.com/docker/go-plugins-helpers/volume"
 	"gopkg.in/inconshreveable/log15.v2"

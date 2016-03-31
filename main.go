@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/mcuadros/gce-docker/plugin"
+	"github.com/mcuadros/gce-docker/watcher"
+
 	"github.com/docker/go-plugins-helpers/volume"
 	"github.com/fsouza/go-dockerclient"
-	"github.com/mcuadros/docker-volume-gce/plugin"
-	"github.com/mcuadros/docker-volume-gce/watcher"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/compute/v1"
