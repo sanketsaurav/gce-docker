@@ -3,7 +3,7 @@
 __gce-docker__ is a service that provides integration with the GCE to Docker, the following resources are supported:
 
 - __Persistent Disks__, the service is able to attach, format and mount [_persistent-disks_](https://cloud.google.com/compute/docs/disks/persistent-disks) allowing to use it as volumes in the container
-- __Load Balancers & Exteranl IPs__: support from auto-creation of LoadBanacers and External IPs allowing direcct access to the container.
+- __Load Balancers & External IPs__: support from auto-creation of LoadBanacers and External IPs allowing direcct access to the container.
 
 
 Examples
