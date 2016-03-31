@@ -29,7 +29,7 @@ The recommended way to install `gce-docker` is use the provided docker image.
 
 Run the driver using the following command:
 ```sh
-docker run -d -v /:/rootfs -v /run/docker/plugins:/run/docker/plugins --privileged mcuadros/gce-docker
+docker run -d -v /:/rootfs -v /run/docker/plugins:/run/docker/plugins -v /var/run/docker.sock:/var/run/docker.sock --privileged mcuadros/gce-docker
 ```
 
 `privileged` is required since `gce-docker` needs low level access to the host mount namespace, the driver mounts, umounts and format disk.

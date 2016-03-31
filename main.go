@@ -39,7 +39,7 @@ func main() {
 
 func executeWatcher(c *http.Client, project, zone, instance string) {
 	log15.Info("starting watcher", "project", project, "zone", zone, "instance", instance)
-	d, err := docker.NewClientFromEnv()
+	d, err := docker.NewClient("unix:///var/run/docker.sock")
 	if err != nil {
 		log15.Error("error creating docker client", "error", err)
 		os.Exit(1)
