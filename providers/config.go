@@ -135,7 +135,7 @@ func (c *NetworkConfig) Group(instance string) string {
 		return c.GroupName
 	}
 
-	return fmt.Sprintf("%s-%s", c.Container, instance)
+	return fmt.Sprintf("%s-%s", instance, c.Container)
 }
 
 func (c *NetworkConfig) ID(instance string) string {

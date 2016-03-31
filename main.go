@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/docker/go-plugins-helpers/volume"
+	"github.com/fsouza/go-dockerclient"
 	"github.com/mcuadros/docker-volume-gce/plugin"
 	"github.com/mcuadros/docker-volume-gce/watcher"
 	"golang.org/x/net/context"
@@ -37,7 +38,13 @@ func main() {
 
 func executeWatcher(c *http.Client, project, zone, instance string) {
 	log15.Info("starting watcher", "project", project, "zone", zone, "instance", instance)
-	w, err := watcher.NewWatcher()
+	d, err := docker.NewClientFromEnv()
+	if err != nil {
+		log15.Error("error creating docker client", "error", err)
+		os.Exit(1)
+	}
+
+	w, err := watcher.NewWatcher(d, c, project, zone, instance)
 	if err != nil {
 		log15.Error("error creating watcher", "error", err)
 		os.Exit(1)
