@@ -11,7 +11,7 @@ The recommended way to install `docker-volume-gce` is use the provided docker im
 
 Run the driver using the following command:
 ```sh
-docker run -d -v /:/rootfs -v /etc/docker:/etc/docker -p 5678:5678 --privileged mcuadros/docker-volume-gce
+docker run -d -v /:/rootfs -v /run/docker/plugins:/run/docker/plugins --privileged mcuadros/docker-volume-gce
 ```
 
 `privileged` is required since the driver needs low level access to the host mount namespace, the driver mounts, umounts and format disk.
