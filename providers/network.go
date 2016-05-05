@@ -2,6 +2,7 @@ package providers
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 
 	"google.golang.org/api/compute/v1"
@@ -122,6 +123,9 @@ func (n *Network) createForwardingRules(c *NetworkConfig) error {
 }
 
 func (n *Network) createForwardingRule(rule *compute.ForwardingRule) error {
+	if err := n.resolveForwardingRule(rule); err != nil {
+		return err
+	}
 
 	_, err := n.s.ForwardingRules.Get(n.project, n.region, rule.Name).Do()
 	if err == nil {
@@ -138,6 +142,21 @@ func (n *Network) createForwardingRule(rule *compute.ForwardingRule) error {
 	}
 
 	return n.WaitDone(op)
+}
+
+func (n *Network) resolveForwardingRule(rule *compute.ForwardingRule) error {
+	test := net.ParseIP(rule.IPAddress)
+	if test.To4() != nil {
+		return nil
+	}
+
+	addr, err := n.s.Addresses.Get(n.project, n.region, rule.IPAddress).Do()
+	if err != nil {
+		return err
+	}
+
+	rule.IPAddress = addr.Address
+	return nil
 }
 
 func (n *Network) createOrUpdateFirewall(c *NetworkConfig) error {

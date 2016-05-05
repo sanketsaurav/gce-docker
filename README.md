@@ -79,7 +79,7 @@ docker run -d --label gce.lb.type=ephemeral -p 80:80 tutum/hello-world
 Available labels:
 - __gce.lb.type__ (options: `ephemeral` or `static`):  Type of IP to be used in the new load balancer
 - __gce.lb.group__ (optional):  Name of group of instances to assign to the same load balancer. If not provided a combination of instance name and container id will be used.
-- __gce.lb.address__ (optional, required with type `static`): Value of the reserved IP address that the forwarding rule is serving on behalf of.
+- __gce.lb.address__ (optional, required with type `static`): Value of the reserved IP address that the forwarding rule is serving on behalf of. The IP address or the IP name.
 - __gce.lb.source.ranges__ (optional): The IP address blocks that this load balancer applies to expressed in CIDR format. One or both of sourceRanges and sourceTags may be set.
 - __gce.lb.source.tags__ (optional):A list of instance tags which this rule applies to. One or both of sourceRanges and sourceTags may be set.
 - __gce.lb.session.affinity__ (optional): Sesssion affinity option, must be one of the following values:
