@@ -34,6 +34,10 @@ func TargetPoolURL(project, region, targetPool string) string {
 }
 
 func DiskTypeURL(project, zone, diskType string) string {
+	if diskType == "" {
+		diskType = "pd-standard"
+	}
+
 	return fmt.Sprintf(
 		"https://www.googleapis.com/compute/v1/projects/%s/zones/%s/diskTypes/%s",
 		project, zone, diskType,
