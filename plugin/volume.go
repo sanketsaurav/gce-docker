@@ -71,9 +71,38 @@ func (v *Volume) List(volume.Request) volume.Response {
 	return r
 }
 
-func (v *Volume) Get(volume.Request) volume.Response {
+func (v *Volume) Capabilities(volume.Request) volume.Response {
+	log15.Debug("capabilities request received")
+	return volume.Response{
+		Capabilities: volume.Capability{Scope: "local"},
+	}
+}
+
+func (v *Volume) Get(r volume.Request) volume.Response {
 	log15.Debug("get request received")
-	return volume.Response{Err: "not implemented"}
+	disks, err := v.p.List()
+	if err != nil {
+		return buildReponseError(err)
+	}
+
+	resp := volume.Response{}
+	for _, d := range disks {
+		if d.Name != r.Name {
+			continue
+		}
+
+		config, err := v.createDiskConfig(r)
+		if err != nil {
+			return buildReponseError(err)
+		}
+
+		resp.Volume = &volume.Volume{
+			Name:       d.Name,
+			Mountpoint: config.MountPoint(v.Root),
+		}
+	}
+
+	return resp
 }
 
 func (v *Volume) Remove(r volume.Request) volume.Response {
