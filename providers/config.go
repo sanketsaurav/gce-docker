@@ -24,10 +24,10 @@ type DiskConfig struct {
 	SourceImage    string
 }
 
-func (c *DiskConfig) Disk() *compute.Disk {
+func (c *DiskConfig) Disk(project, zone string) *compute.Disk {
 	return &compute.Disk{
 		Name:           c.Name,
-		Type:           c.Type,
+		Type:           DiskTypeURL(project, zone, c.Type),
 		SizeGb:         c.SizeGb,
 		SourceSnapshot: c.SourceSnapshot,
 		SourceImage:    c.SourceImage,

@@ -18,9 +18,9 @@ func (s *ConfigSuite) TestNetworkConfigDisk(c *C) {
 		SourceImage:    "baz",
 	}
 
-	d := config.Disk()
+	d := config.Disk("project", "foo-c")
 	c.Assert(d.Name, Equals, "foo")
-	c.Assert(d.Type, Equals, "qux")
+	c.Assert(d.Type, Equals, "https://www.googleapis.com/compute/v1/projects/project/zones/foo-c/diskTypes/qux")
 	c.Assert(d.SizeGb, Equals, int64(42))
 	c.Assert(d.SourceSnapshot, Equals, "bar")
 	c.Assert(d.SourceImage, Equals, "baz")

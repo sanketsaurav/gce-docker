@@ -29,7 +29,7 @@ func NewDisk(c *http.Client, project, zone, instance string) (*Disk, error) {
 }
 
 func (d *Disk) Create(c *DiskConfig) error {
-	disk := c.Disk()
+	disk := c.Disk(d.project, d.zone)
 	if _, err := d.s.Disks.Get(d.project, d.zone, disk.Name).Do(); err != nil {
 		if apiErr, ok := err.(*googleapi.Error); !ok || apiErr.Code != 404 {
 			return err

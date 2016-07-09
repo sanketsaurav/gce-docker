@@ -32,3 +32,10 @@ func TargetPoolURL(project, region, targetPool string) string {
 		project, region, targetPool,
 	)
 }
+
+func DiskTypeURL(project, zone, diskType string) string {
+	return fmt.Sprintf(
+		"https://www.googleapis.com/compute/v1/projects/%s/zones/%s/diskTypes/%s",
+		project, zone, diskType,
+	)
+}
