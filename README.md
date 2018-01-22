@@ -19,7 +19,7 @@ docker run -ti -v my-disk:/data --volume-driver=gce busybox df -h /data
 #### Creating a simple Load Balancer with a static IP
 
 ```sh
-docker run -d --label gce.lb.address=104.197.200.230 --label gce.lb.type=static -p 80:80tutum/hello-world
+docker run -d --label gce.lb.address=104.197.200.230 --label gce.lb.type=static -p 80:80 tutum/hello-world
 ```
 
 
