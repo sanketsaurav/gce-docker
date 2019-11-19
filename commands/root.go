@@ -9,14 +9,14 @@ import (
 	"golang.org/x/oauth2/google"
 
 	"google.golang.org/api/compute/v1"
-	"google.golang.org/cloud/compute/metadata"
+	"cloud.google.com/go/compute/metadata"
 
 	"gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/docker/go-plugins-helpers/volume"
 	"github.com/fsouza/go-dockerclient"
-	"github.com/mcuadros/gce-docker/plugin"
-	"github.com/mcuadros/gce-docker/watcher"
+	"github.com/bloomapi/gce-docker/plugin"
+	"github.com/bloomapi/gce-docker/watcher"
 	"github.com/spf13/cobra"
 )
 
